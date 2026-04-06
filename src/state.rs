@@ -1,7 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+
+const DROP_COOLDOWN_SECS: u64 = 300; // 5 minutes
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PetDrop {
@@ -17,6 +20,7 @@ pub struct PetDrop {
 pub struct State {
     pub default_drop_id: Option<String>,
     pub drops: Vec<PetDrop>,
+    pub last_drop_time: Option<u64>,
 }
 
 impl State {
@@ -38,6 +42,22 @@ impl State {
 
     pub fn add_drop(&mut self, drop: PetDrop) {
         self.drops.push(drop);
+        self.last_drop_time = Some(now_secs());
+    }
+
+    /// Seconds remaining until next drop is allowed, or 0 if ready.
+    pub fn secs_until_drop(&self) -> u64 {
+        match self.last_drop_time {
+            None => 0,
+            Some(t) => {
+                let elapsed = now_secs().saturating_sub(t);
+                DROP_COOLDOWN_SECS.saturating_sub(elapsed)
+            }
+        }
+    }
+
+    pub fn can_drop(&self) -> bool {
+        self.secs_until_drop() == 0
     }
 
     pub fn default_drop(&self) -> Option<&PetDrop> {
@@ -54,6 +74,13 @@ impl State {
     pub fn owns_species(&self, species: &str) -> bool {
         self.drops.iter().any(|d| d.species == species)
     }
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 fn state_path() -> PathBuf {

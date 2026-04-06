@@ -42,22 +42,42 @@ fn main() {
             let mut state = State::load();
 
             if let Some(drop) = state.default_drop().cloned() {
+                // User pinned a pet — always show it, no cooldown involved.
                 let rarity = Rarity::from_str(&drop.rarity);
                 print_header(&rarity);
                 print_drop(&drop, &state, false);
-            } else {
+            } else if state.can_drop() {
+                // Cooldown elapsed — roll a new drop.
                 let drop = roll_drop();
                 let rarity = Rarity::from_str(&drop.rarity);
                 print_header(&rarity);
                 state.add_drop(drop.clone());
                 state.save();
                 print_drop(&drop, &state, true);
+            } else {
+                // Cooldown active — show the most recent drop silently.
+                if let Some(drop) = state.drops.last().cloned() {
+                    let rarity = Rarity::from_str(&drop.rarity);
+                    print_header(&rarity);
+                    print_drop(&drop, &state, false);
+                }
             }
         }
 
         // ── Roll: force a new drop ───────────────────────────────────────────
         Some(Cmd::Roll) => {
             let mut state = State::load();
+            let wait = state.secs_until_drop();
+            if wait > 0 {
+                let mins = wait / 60;
+                let secs = wait % 60;
+                if mins > 0 {
+                    println!("Next drop available in {}m {}s.", mins, secs);
+                } else {
+                    println!("Next drop available in {}s.", secs);
+                }
+                return;
+            }
             let drop = roll_drop();
             let rarity = Rarity::from_str(&drop.rarity);
             print_header(&rarity);
