@@ -2,12 +2,14 @@ mod collection;
 mod display;
 mod pets;
 mod state;
+mod sysinfo;
 
 use clap::{Parser, Subcommand};
 use collection::roll_drop;
-use display::{print_catalog, print_collection, print_drop, print_header, rarity_color};
+use display::{print_catalog, print_collection, print_greeting_box, rarity_color};
 use pets::Rarity;
 use state::State;
+use sysinfo::SysInfo;
 
 #[derive(Parser)]
 #[command(name = "greeting", about = "Terminal greeting with collectible pets")]
@@ -41,25 +43,20 @@ fn main() {
         None => {
             let mut state = State::load();
 
+            let si = SysInfo::gather();
             if let Some(drop) = state.default_drop().cloned() {
                 // User pinned a pet — always show it, no cooldown involved.
-                let rarity = Rarity::from_str(&drop.rarity);
-                print_header(&rarity);
-                print_drop(&drop, &state, false);
+                print_greeting_box(&drop, &state, false, &si);
             } else if state.can_drop() {
                 // Cooldown elapsed — roll a new drop.
                 let drop = roll_drop();
-                let rarity = Rarity::from_str(&drop.rarity);
-                print_header(&rarity);
                 state.add_drop(drop.clone());
                 state.save();
-                print_drop(&drop, &state, true);
+                print_greeting_box(&drop, &state, true, &si);
             } else {
                 // Cooldown active — show the most recent drop silently.
                 if let Some(drop) = state.drops.last().cloned() {
-                    let rarity = Rarity::from_str(&drop.rarity);
-                    print_header(&rarity);
-                    print_drop(&drop, &state, false);
+                    print_greeting_box(&drop, &state, false, &si);
                 }
             }
         }
@@ -79,11 +76,10 @@ fn main() {
                 return;
             }
             let drop = roll_drop();
-            let rarity = Rarity::from_str(&drop.rarity);
-            print_header(&rarity);
             state.add_drop(drop.clone());
             state.save();
-            print_drop(&drop, &state, true);
+            let si = SysInfo::gather();
+            print_greeting_box(&drop, &state, true, &si);
         }
 
         // ── Collection ───────────────────────────────────────────────────────
