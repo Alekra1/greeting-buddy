@@ -1,6 +1,6 @@
 use rand::Rng;
 
-use crate::pets::{catalog, random_name, Pet, Rarity, ALL_RARITIES, EYES, HATS};
+use crate::pets::{catalog, random_name, Pet, Rarity, ALL_RARITIES, EYES};
 use crate::state::PetDrop;
 
 pub fn roll_rarity() -> Rarity {
@@ -24,10 +24,6 @@ fn roll_eye() -> &'static str {
     EYES[rand::thread_rng().gen_range(0..EYES.len())]
 }
 
-fn roll_hat() -> (&'static str, &'static str) {
-    HATS[rand::thread_rng().gen_range(0..HATS.len())]
-}
-
 fn gen_id() -> String {
     let chars: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
     let mut rng = rand::thread_rng();
@@ -39,7 +35,6 @@ pub fn roll_drop() -> PetDrop {
     let rarity = roll_rarity();
     let species = roll_species();
     let eye = roll_eye();
-    let (hat_name, _) = roll_hat();
     let pet_name = random_name(species.name);
 
     PetDrop {
@@ -47,8 +42,6 @@ pub fn roll_drop() -> PetDrop {
         species: species.id.to_string(),
         rarity: rarity.as_str().to_string(),
         eye: eye.to_string(),
-        hat: hat_name.to_string(),
         pet_name,
     }
 }
-

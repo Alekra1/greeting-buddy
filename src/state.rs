@@ -12,7 +12,6 @@ pub struct PetDrop {
     pub species: String,   // "ghost"
     pub rarity: String,    // "Epic"
     pub eye: String,       // "°"
-    pub hat: String,       // "crown" / "none"
     pub pet_name: String,  // "Virtuous Ghost"
 }
 

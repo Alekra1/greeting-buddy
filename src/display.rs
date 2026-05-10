@@ -1,4 +1,4 @@
-use crate::pets::{find_pet_by_id, hat_line_for, render_art, Rarity};
+use crate::pets::{find_pet_by_id, render_art, Rarity};
 use crate::state::{PetDrop, State};
 use crate::sysinfo::SysInfo;
 
@@ -22,8 +22,7 @@ pub fn rarity_color(rarity: &Rarity) -> &'static str {
 //  ┌──────────────────────────────────────────────────┐  52 wide
 //  │* stars scattered everywhere in empty space  *    │
 //  │  info (col 1)      moon (col 25)                 │
-//  │  ...               art  (col 35, row 5+)         │
-//  │                    pedestal (row art_end+)        │
+//  │  ...               art  (col 33, row 3+)         │
 //  └──────────────────────────────────────────────────┘
 
 const OUTER_W: usize = 52;
@@ -39,9 +38,8 @@ const MOON: &[&str] = &[
 const MOON_COL: usize = 22;
 const MOON_ROW: usize = 0;
 
-// Art row 2 — moved up near the top
-const ART_COL: usize = 35;
-const ART_ROW: usize = 2;
+const ART_COL: usize = 33;
+const ART_ROW: usize = 3;
 
 // Stars: sparse, flanking the moon (outside its 22-26 bounding box, rows 0-3)
 const STARS: &[(usize, usize, char)] = &[
@@ -53,12 +51,6 @@ const STARS: &[(usize, usize, char)] = &[
     (1, 19, '*'),
     (1, 31, '·'),
     (1, 42, '*'),
-];
-
-// Pedestal below art, same left column
-const PEDESTAL: &[&str] = &[
-    "  ╔═════╗", // 11 chars flat floor
-    "══╩═════╩══",
 ];
 
 // ── Border ───────────────────────────────────────────────────────────────────
@@ -142,7 +134,7 @@ pub fn print_greeting_box(drop: &PetDrop, state: &State, is_new_drop: bool, si: 
         Some(p) => p,
         None => return,
     };
-    let art = render_art(pet, &drop.eye, hat_line_for(&drop.hat));
+    let art = render_art(pet, &drop.eye);
 
     // ── Info lines at col 1 ───────────────────────────────────────────────
     // Each entry: (body_row_index, styled_string)
@@ -188,8 +180,7 @@ pub fn print_greeting_box(drop: &PetDrop, state: &State, is_new_drop: bool, si: 
     ir += 1;
     let _ = ir;
 
-    let ped_row = ART_ROW + art.len();
-    let total_rows = (ped_row + PEDESTAL.len())
+    let total_rows = (ART_ROW + art.len())
         .max(info.iter().map(|(r, _)| r + 1).max().unwrap_or(0))
         .max(MOON_ROW + MOON.len());
 
@@ -232,16 +223,6 @@ pub fn print_greeting_box(drop: &PetDrop, state: &State, is_new_drop: bool, si: 
             });
         }
 
-        // Pedestal
-        if row >= ped_row && row < ped_row + PEDESTAL.len() {
-            let pl = PEDESTAL[row - ped_row];
-            elems.push(Elem {
-                col: ART_COL,
-                text: format!("{}{}{}", color, pl, RESET),
-                vlen: visual_len(pl),
-            });
-        }
-
         println!("{}", comp_row(elems, row, color));
     }
 
@@ -261,10 +242,10 @@ pub fn print_collection(state: &State) {
     let default_id = state.default_drop_id.as_deref().unwrap_or("");
 
     println!(
-        "  {:<3} {:<22} {:<12} {:<10} {:<4} {}",
-        "#", "Name", "Species", "Rarity", "Eye", "Hat"
+        "  {:<3} {:<22} {:<12} {:<10} {}",
+        "#", "Name", "Species", "Rarity", "Eye"
     );
-    println!("  {}", "─".repeat(66));
+    println!("  {}", "─".repeat(58));
 
     for (i, drop) in state.drops.iter().enumerate() {
         let rarity = Rarity::from_str(&drop.rarity);
@@ -274,16 +255,11 @@ pub fn print_collection(state: &State) {
         } else {
             String::new()
         };
-        let hat_display = if drop.hat == "none" {
-            "—"
-        } else {
-            drop.hat.as_str()
-        };
         let num = format!("{}{}{}", DIM, i + 1, RESET);
         let rstr = format!("{}{} {}{}", color, rarity.stars(), drop.rarity, RESET);
         println!(
-            "  {:<12} {:<22} {:<12} {:<24} {:<4} {}{}",
-            num, drop.pet_name, drop.species, rstr, drop.eye, hat_display, default_marker,
+            "  {:<12} {:<22} {:<12} {:<24} {}{}",
+            num, drop.pet_name, drop.species, rstr, drop.eye, default_marker,
         );
     }
     println!();

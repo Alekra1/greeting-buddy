@@ -19,19 +19,6 @@ pub fn random_name(species_name: &str) -> String {
 
 pub const EYES: &[&str] = &["·", "✦", "×", "◉", "@", "°"];
 
-// Hats (8 options including none, equal probability)
-// (name, hat_line) — hat_line is empty string for "none"
-pub const HATS: &[(&str, &str)] = &[
-    ("none",       "            "),
-    ("crown",      "   \\^^^/    "),
-    ("tophat",     "   [___]    "),
-    ("propeller",  "    -+-     "),
-    ("halo",       "   (   )    "),
-    ("wizard",     "    /^\\     "),
-    ("beanie",     "   (___)    "),
-    ("tinyduck",   "    ,>      "),
-];
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Rarity {
     Common,
@@ -84,14 +71,6 @@ impl Rarity {
     }
 }
 
-/// Look up the hat display line by hat name. Returns empty string for "none".
-pub fn hat_line_for(hat: &str) -> &'static str {
-    HATS.iter()
-        .find(|(name, _)| *name == hat)
-        .map(|(_, line)| *line)
-        .unwrap_or("            ")
-}
-
 pub const ALL_RARITIES: &[Rarity] = &[
     Rarity::Common,
     Rarity::Uncommon,
@@ -104,22 +83,17 @@ pub const ALL_RARITIES: &[Rarity] = &[
 pub struct Pet {
     pub id: &'static str,
     pub name: &'static str,
-    /// Frame-0 art from sprites.ts. Line 0 is the hat slot (blank = "            ").
+    /// Frame-0 art from sprites.ts. Line 0 is blank vertical spacing.
     /// Uses {E} as the eye placeholder.
     pub art: &'static [&'static str],
 }
 
-/// Render art: substitute eye, apply hat to line 0 (or drop it if none).
-pub fn render_art(pet: &Pet, eye: &str, hat_line: &str) -> Vec<String> {
+/// Render art: substitute eye and drop the blank top spacing line.
+pub fn render_art(pet: &Pet, eye: &str) -> Vec<String> {
     let mut lines: Vec<String> = pet.art.iter()
         .map(|l| l.replace("{E}", eye))
         .collect();
-    // Line 0 is hat slot
-    if hat_line.trim().is_empty() {
-        lines.remove(0); // no hat — drop blank slot
-    } else {
-        lines[0] = hat_line.to_string();
-    }
+    lines.remove(0);
     lines
 }
 
@@ -132,7 +106,7 @@ pub fn find_pet_by_id(id: &str) -> Option<&'static Pet> {
 }
 
 // Exact frame-0 sprites from sprites.ts, all 18 species.
-// Line 0 is always blank in frame 0 (hat slot).
+// Line 0 is always blank in frame 0.
 static PETS: &[Pet] = &[
     Pet {
         id: "duck",

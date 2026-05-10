@@ -1,6 +1,6 @@
 # greeting
 
-A terminal greeting with a collectible pet system. Every time you open a terminal you get a random pet drop — species, rarity, eye style, hat, and a generated name are all rolled and **permanently saved**. Collect them all.
+A terminal greeting with a collectible pet system. Every time you open a terminal you get a random pet drop — species, rarity, eye style, and a generated name are all rolled and **permanently saved**. Collect them all.
 
 ```
   ▀▀█▀▀ ▒█▀▀▀ ▒█▀▀█ ▒█▀▄▀█ ░▀░ ▒█▄░▒█ ░█▀▀█ ▒█░░░
@@ -51,10 +51,9 @@ Each terminal open (or `greeting roll`) independently rolls:
 | **Rarity** | Common / Uncommon / Rare / Epic / Legendary | 60% / 25% / 10% / 4% / 1% |
 | **Species** | 18 species | equal |
 | **Eye** | `·` `✦` `×` `◉` `@` `°` | equal |
-| **Hat** | none, crown, tophat, propeller, halo, wizard, beanie, tinyduck | equal |
 | **Name** | adjective + species (e.g. *Virtuous Ghost*, *Frosty Duck*) | — |
 
-All five values are locked in at drop time and saved permanently. The same species can drop multiple times as different pets with different rarities, eyes, hats, and names.
+All four values are locked in at drop time and saved permanently. The same species can drop multiple times as different pets with different rarities, eyes, and names.
 
 The header color, pet art, rarity label, and species count all use the rarity color of the displayed drop.
 
@@ -80,17 +79,17 @@ greeting roll
 
 # See your full collection with numbers
 greeting collection
-#  #   Name                   Species      Rarity          Eye  Hat
-#  1   Virtuous Ghost         ghost        ★★★★ Epic       °    crown
-#  2   Frosty Duck            duck         ★ Common        ·    —
-#  3   Bold Ghost             ghost        ★ Common        ✦    beanie
+#  #   Name                   Species      Rarity          Eye
+#  1   Virtuous Ghost         ghost        ★★★★ Epic       °
+#  2   Frosty Duck            duck         ★ Common        ·
+#  3   Bold Ghost             ghost        ★ Common        ✦
 
 # Keep the epic ghost as your default
 greeting set 1
 
 # Verify
 greeting
-# → shows Virtuous Ghost every time, same rarity/eye/hat
+# → shows Virtuous Ghost every time, same rarity/eye
 
 # Go back to random drops
 greeting unset
@@ -120,7 +119,6 @@ The state file is created automatically on first run. Delete it to reset your co
       "species": "ghost",
       "rarity": "Epic",
       "eye": "°",
-      "hat": "crown",
       "pet_name": "Virtuous Ghost"
     },
     {
@@ -128,7 +126,6 @@ The state file is created automatically on first run. Delete it to reset your co
       "species": "duck",
       "rarity": "Common",
       "eye": "·",
-      "hat": "none",
       "pet_name": "Frosty Duck"
     }
   ]
