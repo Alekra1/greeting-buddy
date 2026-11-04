@@ -4,7 +4,6 @@ use crate::sysinfo::SysInfo;
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
 const RESET: &str = "\x1b[0m";
-const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 
 pub fn rarity_color(rarity: &Rarity) -> &'static str {
@@ -19,77 +18,70 @@ pub fn rarity_color(rarity: &Rarity) -> &'static str {
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 //
-//  ┌──────────────────────────────────────────────────┐  52 wide
-//  │* stars scattered everywhere in empty space  *    │
-//  │  info (col 1)      moon (col 25)                 │
-//  │  ...               art  (col 33, row 3+)         │
-//  └──────────────────────────────────────────────────┘
+//                                            moon (col 42)       58 wide
+//   info (col 1, rows 0-3)
+//     pet art (col 3, row 6+)  cloud (col 19, row 6)  cloud (col 41, row 7)
 
-const OUTER_W: usize = 52;
-const INNER_W: usize = 50;
+const WIDTH: usize = 58;
 
-// Moon: 5-wide × 4-tall thin C-crescent with ░▒▓ gradient.
+// Moon: 13-wide × 6-tall chunky crescent, horns curling right,
+// terminator shaded ▓░ down the inner edge. Keeps its own sky band.
 const MOON: &[&str] = &[
-    " █▓▒░", // top arc
-    "█▓▒  ", // C mouth top
-    "█▓▒  ", // C mouth bottom
-    " █▓▒░", // bottom arc
+    "   █████▓▓░",
+    " ███▓░     ░░",
+    "███▓░",
+    "███▓░",
+    " ██▓░░      ▓",
+    "   ░▓▓███▓▓░",
 ];
-const MOON_COL: usize = 22;
+const MOON_COL: usize = 42;
 const MOON_ROW: usize = 0;
 
-const ART_COL: usize = 33;
-const ART_ROW: usize = 3;
-
-// Stars spread through the full greeting body. Elements render over this field.
-const STARS: &[(usize, usize, char)] = &[
-    (0, 4, '*'),
-    (0, 18, '.'),
-    (0, 29, '✦'),
-    (0, 42, '.'),
-    (0, 48, ','),
-    (1, 9, '☾'),
-    (1, 19, '.'),
-    (1, 31, '*'),
-    (1, 39, '˚'),
-    (2, 3, '.'),
-    (2, 14, '✦'),
-    (2, 28, ','),
-    (2, 44, '.'),
-    (3, 6, '˚'),
-    (3, 20, '.'),
-    (3, 30, '✮'),
-    (3, 47, '*'),
-    (4, 12, '*'),
-    (4, 24, '.'),
-    (4, 37, '✩'),
-    (5, 2, '.'),
-    (5, 16, '✴'),
-    (5, 27, '˚'),
-    (5, 43, '.'),
-    (6, 8, '*'),
-    (6, 21, '.'),
-    (6, 32, '★'),
-    (6, 48, ','),
-    (7, 5, '˚'),
-    (7, 18, '.'),
-    (7, 35, '✦'),
-    (7, 45, '*'),
-    (8, 10, '.'),
-    (8, 25, '*'),
-    (8, 38, 'ﾟ'),
-    (8, 49, '.'),
+// Clouds: (row, col, sprite). They drift low beside the pet, clear of the
+// info block and the moon.
+#[rustfmt::skip]
+const CLOUDS: &[(usize, usize, &[&str])] = &[
+    (
+        6,
+        19,
+        &[
+            "         ░░░░░░",
+            " ░░░   ░░░░░░░░░░",
+            "░░░░░░░░░░░░░░░░░░░",
+        ],
+    ),
+    (
+        7,
+        41,
+        &[
+            "    ░░░░",
+            "  ░░░░░░░░",
+            "░░░░░░░░░░░░░░░░",
+        ],
+    ),
 ];
 
-// ── Border ───────────────────────────────────────────────────────────────────
+const INFO_ROW: usize = 0;
 
-fn box_top(color: &str) -> String {
-    format!("{}┌{}┐{}", color, "─".repeat(OUTER_W - 2), RESET)
-}
+const ART_COL: usize = 3;
+const ART_ROW: usize = 6;
 
-fn box_bottom(color: &str) -> String {
-    format!("{}└{}┘{}", color, "─".repeat(OUTER_W - 2), RESET)
-}
+// Sparse stars in the open sky. Elements render over this field; stars sit
+// outside the info/moon/cloud/pet zones so they stay visible on every drop.
+const STARS: &[(usize, usize, char)] = &[
+    (0, 39, '*'),
+    (1, 32, '.'),
+    (2, 29, '˚'),
+    (2, 56, '˚'),
+    (3, 36, '✦'),
+    (4, 14, '˚'),
+    (4, 30, '*'),
+    (5, 22, '.'),
+    (5, 38, '.'),
+    (6, 40, '*'),
+    (7, 55, '✦'),
+    (9, 30, '*'),
+];
 
 // ── Star field ────────────────────────────────────────────────────────────────
 
@@ -102,59 +94,91 @@ fn star_at(row: usize, col: usize) -> Option<char> {
 
 // ── Composited row renderer ───────────────────────────────────────────────────
 
-struct Elem {
-    col: usize,
-    text: String, // may contain ANSI codes; ends with RESET
-    vlen: usize,  // visual (non-ANSI) length
+/// Ink applied to a painted cell.
+#[derive(Clone, Copy, PartialEq)]
+enum Ink {
+    Default, // terminal default foreground
+    Color,   // rarity colour
+    Dim,     // dimmed rarity colour
 }
 
-/// Render a single body row. Elements are placed at absolute columns over a
-/// deterministic star background; gaps between elements show stars or spaces.
-fn comp_row(mut elems: Vec<Elem>, row: usize, color: &str) -> String {
-    elems.sort_by_key(|e| e.col);
+impl Ink {
+    fn ansi(self, color: &str) -> String {
+        match self {
+            Ink::Default => RESET.to_string(),
+            Ink::Color => color.to_string(),
+            Ink::Dim => format!("{}{}", DIM, color),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct Elem {
+    col: usize,
+    text: String, // plain text, no ANSI
+    ink: Ink,
+    opaque: bool, // false → spaces let the background show through
+}
+
+/// Paint one body row: stars first, then elements in z-order (later
+/// elements win cell by cell), then emit the row with run-length ANSI.
+fn comp_row(elems: &[Elem], row: usize, color: &str) -> String {
+    let mut cells: Vec<Option<(char, Ink)>> = (0..WIDTH)
+        .map(|col| star_at(row, col).map(|ch| (ch, Ink::Dim)))
+        .collect();
+
+    for elem in elems {
+        for (i, ch) in elem.text.chars().enumerate() {
+            let col = elem.col + i;
+            if col >= WIDTH {
+                break;
+            }
+            if ch == ' ' {
+                if elem.opaque {
+                    cells[col] = None;
+                }
+                continue;
+            }
+            cells[col] = Some((ch, elem.ink));
+        }
+    }
+
+    // Trailing blanks are not emitted.
+    let used = cells.iter().rposition(|c| c.is_some()).map_or(0, |i| i + 1);
+
     let mut s = String::new();
-    s.push_str(color);
-    s.push('│');
-    s.push_str(RESET);
-    let mut col = 0usize;
-    for elem in &elems {
-        let target = elem.col.min(INNER_W);
-        while col < target {
-            if let Some(ch) = star_at(row, col) {
-                s.push_str(DIM);
-                s.push_str(color);
-                s.push(ch);
-                s.push_str(RESET);
-            } else {
+    let mut cur: Option<Ink> = None;
+    for cell in &cells[..used] {
+        match cell {
+            Some((ch, ink)) => {
+                if cur != Some(*ink) {
+                    // RESET first: a bold/dim run must not leak into the next ink.
+                    if cur.is_some() && *ink != Ink::Default {
+                        s.push_str(RESET);
+                    }
+                    s.push_str(&ink.ansi(color));
+                    cur = Some(*ink);
+                }
+                s.push(*ch);
+            }
+            None => {
+                if cur.is_some() {
+                    s.push_str(RESET);
+                    cur = None;
+                }
                 s.push(' ');
             }
-            col += 1;
-        }
-        if col == elem.col && col + elem.vlen <= INNER_W {
-            s.push_str(&elem.text);
-            col += elem.vlen;
         }
     }
-    while col < INNER_W {
-        if let Some(ch) = star_at(row, col) {
-            s.push_str(DIM);
-            s.push_str(color);
-            s.push(ch);
-            s.push_str(RESET);
-        } else {
-            s.push(' ');
-        }
-        col += 1;
+    if cur.is_some() {
+        s.push_str(RESET);
     }
-    s.push_str(color);
-    s.push('│');
-    s.push_str(RESET);
     s
 }
 
 // ── Greeting box ─────────────────────────────────────────────────────────────
 
-pub fn print_greeting_box(drop: &PetDrop, state: &State, is_new_drop: bool, si: &SysInfo) {
+pub fn print_greeting_box(drop: &PetDrop, _state: &State, _is_new_drop: bool, si: &SysInfo) {
     let rarity = Rarity::from_str(&drop.rarity);
     let color = rarity_color(&rarity);
 
@@ -164,97 +188,85 @@ pub fn print_greeting_box(drop: &PetDrop, state: &State, is_new_drop: bool, si: 
     };
     let art = render_art(pet, &drop.eye);
 
-    // ── Info lines at col 1 ───────────────────────────────────────────────
-    // Each entry: (body_row_index, styled_string)
-    let mut info: Vec<(usize, String)> = Vec::new();
-    let mut ir = 0usize;
+    // ── Info rows at col 1: (body_row, element) ───────────────────────────
+    let mut info: Vec<(usize, Elem)> = Vec::new();
+    let mut ir = INFO_ROW;
 
-    info.push((ir, format!("{}{}{}{}", BOLD, color, drop.pet_name, RESET)));
-    ir += 1;
-    if is_new_drop {
-        info.push((ir, format!("{}{}✦ New drop! ✦{}", BOLD, color, RESET)));
-        ir += 1;
-    }
-    info.push((
-        ir,
-        format!("{}{} {}{}", color, rarity.stars(), drop.rarity, RESET),
-    ));
-    ir += 1;
-    let sc = state.species_count(&drop.species);
-    if sc > 1 {
+    let facts = [
+        ("os", &si.os),
+        ("kern", &si.kernel),
+        ("ip", &si.local_ip),
+        ("pkgs", &si.packages),
+    ];
+    for (label, value) in facts {
         info.push((
             ir,
-            format!(
-                "{}#{} of {} {}s{}",
-                DIM,
-                drop_number(drop, state),
-                sc,
-                pet.name,
-                RESET,
-            ),
+            Elem {
+                col: 1,
+                text: format!("{:<8}", label),
+                ink: Ink::Dim,
+                opaque: true,
+            },
+        ));
+        info.push((
+            ir,
+            Elem {
+                col: 9,
+                text: value.clone(),
+                ink: Ink::Default,
+                opaque: true,
+            },
         ));
         ir += 1;
     }
-    info.push((ir, format!("{}{}──────────────────{}", DIM, color, RESET)));
-    ir += 1;
-    let lc = format!("{}{}", DIM, color);
-    info.push((ir, format!("{}os{}      {}", lc, RESET, si.os)));
-    ir += 1;
-    info.push((ir, format!("{}kern{}    {}", lc, RESET, si.kernel)));
-    ir += 1;
-    info.push((ir, format!("{}ip{}      {}", lc, RESET, si.local_ip)));
-    ir += 1;
-    info.push((ir, format!("{}pkgs{}    {}", lc, RESET, si.packages)));
-    ir += 1;
-    let _ = ir;
 
     let total_rows = (ART_ROW + art.len())
         .max(info.iter().map(|(r, _)| r + 1).max().unwrap_or(0))
         .max(MOON_ROW + MOON.len());
 
     // ── Render ────────────────────────────────────────────────────────────
-    println!("{}", box_top(color));
-
     for row in 0..total_rows {
+        // Painted back-to-front: moon, clouds, pet art (all transparent), then info.
         let mut elems: Vec<Elem> = Vec::new();
 
-        // Info
-        for (info_row, text) in &info {
-            if *info_row == row {
-                let vl = visual_len(text);
+        if row >= MOON_ROW && row < MOON_ROW + MOON.len() {
+            elems.push(Elem {
+                col: MOON_COL,
+                text: MOON[row - MOON_ROW].to_string(),
+                ink: Ink::Dim,
+                opaque: false,
+            });
+        }
+
+        for &(cloud_row, cloud_col, sprite) in CLOUDS {
+            if row >= cloud_row && row < cloud_row + sprite.len() {
                 elems.push(Elem {
-                    col: 1,
-                    text: text.clone(),
-                    vlen: vl,
+                    col: cloud_col,
+                    text: sprite[row - cloud_row].to_string(),
+                    ink: Ink::Color,
+                    opaque: false,
                 });
             }
         }
 
-        // Moon (dim)
-        if row >= MOON_ROW && row < MOON_ROW + MOON.len() {
-            let ml = MOON[row - MOON_ROW];
-            elems.push(Elem {
-                col: MOON_COL,
-                text: format!("{}{}{}{}", DIM, color, ml, RESET),
-                vlen: visual_len(ml),
-            });
-        }
-
-        // Art
         if row >= ART_ROW && row < ART_ROW + art.len() {
-            let al = &art[row - ART_ROW];
-            let vl = visual_len(al);
             elems.push(Elem {
                 col: ART_COL,
-                text: format!("{}{}{}", color, al, RESET),
-                vlen: vl,
+                text: art[row - ART_ROW].clone(),
+                ink: Ink::Color,
+                opaque: false,
             });
         }
 
-        println!("{}", comp_row(elems, row, color));
+        for (info_row, elem) in &info {
+            if *info_row == row {
+                elems.push((*elem).clone());
+            }
+        }
+
+        println!("{}", comp_row(&elems, row, color));
     }
 
-    println!("{}", box_bottom(color));
     println!();
 }
 
@@ -332,29 +344,3 @@ pub fn print_catalog(state: &State) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn drop_number(drop: &PetDrop, state: &State) -> usize {
-    state
-        .drops
-        .iter()
-        .filter(|d| d.species == drop.species)
-        .position(|d| d.id == drop.id)
-        .map(|i| i + 1)
-        .unwrap_or(1)
-}
-
-fn visual_len(s: &str) -> usize {
-    let mut len = 0;
-    let mut in_escape = false;
-    for c in s.chars() {
-        if c == '\x1b' {
-            in_escape = true;
-        } else if in_escape {
-            if c == 'm' {
-                in_escape = false;
-            }
-        } else {
-            len += 1;
-        }
-    }
-    len
-}
