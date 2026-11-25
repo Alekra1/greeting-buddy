@@ -1,6 +1,10 @@
 mod collection;
 mod display;
+mod font_atlas;
+mod gfx;
 mod pets;
+mod scenes;
+mod scenes_hd;
 mod state;
 mod sysinfo;
 
@@ -8,18 +12,56 @@ use clap::{Parser, Subcommand};
 use collection::roll_drop;
 use display::{print_catalog, print_collection, print_greeting_box, rarity_color};
 use pets::Rarity;
+use scenes::Scene;
 use state::State;
 use sysinfo::SysInfo;
 
 #[derive(Parser)]
-#[command(name = "greeting", about = "Terminal greeting with collectible pets")]
+#[command(
+    name = "greeting",
+    about = "TrueColor dark-fantasy ASCII terminal greeting with live random scene rotation"
+)]
 struct Cli {
+    /// Start on a specific scene: eclipse, bonfire, torii, portal, grimoire, nether (or 1-6)
+    #[arg(short, long)]
+    scene: Option<String>,
+
+    /// Seconds between automatic random scene switches (0 disables auto-switch)
+    #[arg(short, long, default_value_t = 5)]
+    interval: u64,
+
+    /// Render a single static frame immediately and return to the shell
+    #[arg(long = "static")]
+    static_mode: bool,
+
+    /// Run as a foreground live viewer (press q/Enter/Esc to exit)
+    #[arg(long = "fg")]
+    foreground: bool,
+
+    /// Force pure-text 24-bit TrueColor rendering (disable Kitty Graphics HD bloom)
+    #[arg(long = "text")]
+    text_mode: bool,
+
+    /// Internal: dump raw 560x330 RGBA8888 bytes of one HD bloom frame to a file
+    #[arg(long = "dump-rgba", hide = true)]
+    dump_rgba: Option<String>,
+
+    /// Internal: run the background top-banner animator
+    #[arg(long = "daemon", hide = true)]
+    daemon: bool,
+
+    /// Internal: parent shell PID for daemon lifecycle tracking
+    #[arg(long = "shell-pid", hide = true)]
+    shell_pid: Option<i32>,
+
     #[command(subcommand)]
     command: Option<Cmd>,
 }
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Show the classic starry pet greeting card
+    Pet,
     /// Force a new random pet drop
     Roll,
     /// List all your collected drops
@@ -35,30 +77,66 @@ enum Cmd {
     Catalog,
 }
 
+fn show_classic_pet(si: &SysInfo) {
+    let mut state = State::load();
+    if let Some(drop) = state.default_drop().cloned() {
+        print_greeting_box(&drop, &state, false, si);
+    } else if state.can_drop() {
+        let drop = roll_drop();
+        state.add_drop(drop.clone());
+        state.save();
+        print_greeting_box(&drop, &state, true, si);
+    } else if let Some(drop) = state.drops.last().cloned() {
+        print_greeting_box(&drop, &state, false, si);
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        // ── Default: show greeting ───────────────────────────────────────────
+        // ── Default: TrueColor live ASCII greeting (random scene every 5s) ───
         None => {
-            let mut state = State::load();
+            let initial = match cli.scene.as_deref() {
+                None | Some("random") => None,
+                Some(name) => match Scene::from_name(name) {
+                    Some(s) => Some(s),
+                    None => {
+                        eprintln!(
+                            "Unknown scene '{}'. Valid scenes: eclipse, bonfire, torii, portal, grimoire, nether (or 1-6).",
+                            name
+                        );
+                        std::process::exit(1);
+                    }
+                },
+            };
+
+            if let Some(ref dump_path) = cli.dump_rgba {
+                let target = initial.unwrap_or(Scene::Eclipse);
+                if let Err(e) = scenes::dump_hd_rgba(target, dump_path) {
+                    eprintln!("Failed to dump RGBA: {}", e);
+                    std::process::exit(1);
+                }
+                return;
+            }
 
             let si = SysInfo::gather();
-            if let Some(drop) = state.default_drop().cloned() {
-                // User pinned a pet — always show it, no cooldown involved.
-                print_greeting_box(&drop, &state, false, &si);
-            } else if state.can_drop() {
-                // Cooldown elapsed — roll a new drop.
-                let drop = roll_drop();
-                state.add_drop(drop.clone());
-                state.save();
-                print_greeting_box(&drop, &state, true, &si);
+            if cli.daemon {
+                let spid = cli.shell_pid.unwrap_or_else(|| unsafe { libc::getppid() });
+                scenes::run_daemon(initial, cli.interval, spid, cli.text_mode, &si);
+            } else if cli.static_mode {
+                scenes::print_static(initial, cli.text_mode, &si);
+            } else if cli.foreground {
+                scenes::run_foreground(initial, cli.interval, cli.text_mode, &si);
             } else {
-                // Cooldown active — show the most recent drop silently.
-                if let Some(drop) = state.drops.last().cloned() {
-                    print_greeting_box(&drop, &state, false, &si);
-                }
+                scenes::start_background_banner(initial, cli.interval, cli.text_mode, &si);
             }
+        }
+
+        // ── Classic pet card ─────────────────────────────────────────────────
+        Some(Cmd::Pet) => {
+            let si = SysInfo::gather();
+            show_classic_pet(&si);
         }
 
         // ── Roll: force a new drop ───────────────────────────────────────────
@@ -86,8 +164,10 @@ fn main() {
         Some(Cmd::Collection) => {
             let state = State::load();
             println!();
-            println!("  \x1b[1mYour Collection\x1b[0m  \x1b[2m({} drops)\x1b[0m",
-                state.drops.len());
+            println!(
+                "  \x1b[1mYour Collection\x1b[0m  \x1b[2m({} drops)\x1b[0m",
+                state.drops.len()
+            );
             println!();
             print_collection(&state);
         }
@@ -102,7 +182,8 @@ fn main() {
             if number == 0 || number > state.drops.len() {
                 eprintln!(
                     "Invalid number {}. You have {} drops (use `greeting collection` to see them).",
-                    number, state.drops.len()
+                    number,
+                    state.drops.len()
                 );
                 return;
             }

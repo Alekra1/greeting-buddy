@@ -1,133 +1,132 @@
 # greeting
 
-A terminal greeting with a collectible pet system. Every time you open a terminal you get a random pet drop — species, rarity, eye style, and a generated name are all rolled and **permanently saved**. Collect them all.
+A lightweight Rust terminal greeting banner that renders **live, animated dark-fantasy ASCII scenes with real HDR optical bloom** alongside a compact native system HUD — without touching your terminal config or slowing down shell startup.
 
-```
-  ▀▀█▀▀ ▒█▀▀▀ ▒█▀▀█ ▒█▀▄▀█ ░▀░ ▒█▄░▒█ ░█▀▀█ ▒█░░░
-  ░▒█░░ ▒█▀▀▀ ▒█▄▄▀ ▒█▒█▒█ ▀█▀ ▒█▒█▒█ ▒█▄▄█ ▒█░░░
-  ░▒█░░ ▒█▄▄▄ ▒█░▒█ ▒█░░▒█ ▀▀▀ ▒█░░▀█ ▒█░▒█ ▒█▄▄█
+It automatically selects the best rendering backend for your terminal:
 
-   /^\
-  .----.       Virtuous Ghost
- / °  ° \      ★★★★ Epic
- |      |
- ~`~``~`~
-```
+| Terminal | Backend | Visual Quality |
+|---|---|---|
+| **Ghostty**, **Kitty**, **WezTerm** | Kitty Graphics Protocol (`f=32`, zlib) | 32-bit RGBA alpha-blended optical bloom over transparent/blurred backgrounds |
+| **foot**, **mlterm**, **Contour** | Native transparent Sixel (`P2=1`) | 1:1 native-pixel tiny-font glyphs + adaptive 240-color palette + Bayer-feathered glow |
+| **tmux**, **screen**, SSH, narrow panes, `--text` | Pure 24-bit TrueColor ANSI text | Universal zero-dependency fallback |
+
+The banner runs in a detached background animator so your shell prompt appears immediately below it. Scenes keep animating (~16–20 FPS) and randomly switch every 5 seconds **while you type**, recover cleanly when you resize the window, and stop automatically as soon as you execute a command.
+
+The classic collectible pet system is also preserved under `greeting pet`, `greeting roll`, `greeting collection`, `greeting set`, `greeting unset`, and `greeting catalog`.
+
+---
+
+## Scenes
+
+| `#` | Name | Aliases | Description |
+|---|---|---|---|
+| `1` | **Eclipse Knight** | `eclipse`, `knight` | Armored dark knight, blazing solar-eclipse corona, diagonal flaming greatsword |
+| `2` | **Ruined Bonfire** | `bonfire`, `fire` | Gothic sanctuary pillars & crumbling arch, coiled sword in roaring bonfire, lit cobblestones |
+| `3` | **Moonlit Torii** | `torii`, `shrine`, `moon` | Crimson blood moon, vermilion Torii gate with gilded `◈` plaque, pine islets, sakura petals, shimmering water |
+| `4` | **Astral Gate** | `portal`, `astral`, `gate` | Carved stone archway with glowing `◈` keystone & `§` pillar runes, swirling cyan-violet vortex, stepped dais |
+| `5` | **Arcane Grimoire** | `grimoire`, `book`, `tome` | Levitating open spellbook, stacked gilded pages, amethyst & gold double-helix rune ribbons, carved stone altar |
+| `6` | **Nether Portal** | `nether`, `mc`, `minecraft` | Tall 4:5 crying-obsidian brick frame, swirling magenta-violet vortex, flanking Nether fire braziers, basalt & magma floor |
 
 ---
 
 ## Install
 
+### Prerequisites
+- Rust toolchain (`cargo`)
+- System `zlib` (`libz.so` — installed by default on virtually all Linux distros)
+
+### Build & install
 ```bash
-git clone <repo> && cd greeting
+git clone git@github.com:Alekra1/greeting-buddy.git greeting
+cd greeting
 cargo install --path .
 ```
 
-Make sure `~/.cargo/bin` is on your PATH:
-
+Make sure `~/.cargo/bin` is on your `PATH`:
 ```bash
-echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+export PATH="$HOME/.cargo/bin:$PATH"
 ```
-
-## Run on terminal open
-
-Add a single line to your `~/.bashrc` (or `~/.zshrc`):
-
-```bash
-echo 'greeting' >> ~/.bashrc
-```
-
-> **Important:** use `echo '...' >>` exactly once — running it multiple times duplicates the line.
-> Verify with `grep -c 'greeting' ~/.bashrc` — should return `1`.
 
 ---
 
-## Drop system
+## Shell Integration (`~/.bashrc`)
 
-Each terminal open (or `greeting roll`) independently rolls:
-
-| Roll | Options | Probability |
-|------|---------|-------------|
-| **Rarity** | Common / Uncommon / Rare / Epic / Legendary | 60% / 25% / 10% / 4% / 1% |
-| **Species** | 18 species | equal |
-| **Eye** | `·` `✦` `×` `◉` `@` `°` | equal |
-| **Name** | adjective + species (e.g. *Virtuous Ghost*, *Frosty Duck*) | — |
-
-All four values are locked in at drop time and saved permanently. The same species can drop multiple times as different pets with different rarities, eyes, and names.
-
-The header color, pet art, rarity label, and species count all use the rarity color of the displayed drop.
-
----
-
-## CLI
-
-```
-greeting                    Open greeting — rolls a new drop (or shows default)
-greeting roll               Force a new drop regardless of default
-greeting collection         List all your drops with numbers, names, rarities
-greeting set <number>       Set default pet by number from `greeting collection`
-greeting unset              Clear default — go back to random drops
-greeting catalog            Show all 18 species and how many of each you own
-```
-
-### Workflow example
+To run `greeting` automatically when opening a terminal and ensure the background animator stops cleanly even on shell builtins (`cd`, `echo`, etc.), add this block once to `~/.bashrc`:
 
 ```bash
-# Roll some pets
-greeting roll
-greeting roll
-
-# See your full collection with numbers
-greeting collection
-#  #   Name                   Species      Rarity          Eye
-#  1   Virtuous Ghost         ghost        ★★★★ Epic       °
-#  2   Frosty Duck            duck         ★ Common        ·
-#  3   Bold Ghost             ghost        ★ Common        ✦
-
-# Keep the epic ghost as your default
-greeting set 1
-
-# Verify
-greeting
-# → shows Virtuous Ghost every time, same rarity/eye
-
-# Go back to random drops
-greeting unset
-```
-
-### Species
-
-`duck` `goose` `blob` `cat` `dragon` `octopus` `owl` `penguin` `turtle`
-`snail` `ghost` `axolotl` `capybara` `cactus` `robot` `rabbit` `mushroom` `chonk`
-
----
-
-## Config files
-
-| File | Purpose |
-|------|---------|
-| `~/.config/terminal-greeting/state.json` | All your drops + which one is the default |
-
-The state file is created automatically on first run. Delete it to reset your collection.
-
-```json
-{
-  "default_drop_id": "a3f9",
-  "drops": [
-    {
-      "id": "a3f9",
-      "species": "ghost",
-      "rarity": "Epic",
-      "eye": "°",
-      "pet_name": "Virtuous Ghost"
-    },
-    {
-      "id": "b1k2",
-      "species": "duck",
-      "rarity": "Common",
-      "eye": "·",
-      "pet_name": "Frosty Duck"
-    }
-  ]
+export PATH="$HOME/.cargo/bin:$PATH"
+_GREETING_PID_FILE="/tmp/greeting-tty-$(tty 2>/dev/null | tr '/' '-').pid"
+_greeting_prompt_hook() {
+  [[ -f "$_GREETING_PID_FILE" ]] || return
+  local pid armed
+  read -r pid armed < "$_GREETING_PID_FILE" 2>/dev/null || return
+  if [[ "$armed" == "0" ]]; then
+    printf '%s 1\n' "$pid" > "$_GREETING_PID_FILE" 2>/dev/null
+  else
+    kill -TERM "$pid" 2>/dev/null
+    rm -f "$_GREETING_PID_FILE" 2>/dev/null
+  fi
 }
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}_greeting_prompt_hook"
+greeting
 ```
+
+### How lifecycle works
+1. `greeting` paints frame 1 immediately, parks the cursor below the 15-row banner, writes `<daemon_pid> 0` to `/tmp/greeting-tty-<tty>.pid`, and exits so bash displays your prompt right away.
+2. When bash renders the initial prompt, `_greeting_prompt_hook` arms the PID file (`0` → `1`) without killing the daemon — so animation continues while you sit at the prompt or type.
+3. As soon as you press Enter:
+   - External commands change the TTY foreground process group (`tcgetpgrp`), causing the daemon to exit immediately on its own.
+   - Shell builtins keep the same process group, so on the next prompt `_greeting_prompt_hook` sees `armed == 1` and sends `SIGTERM` to stop the daemon cleanly.
+
+---
+
+## CLI Usage
+
+```bash
+greeting                       # Live background top-banner (random scene every 5s)
+greeting -s torii              # Start on a specific scene (name or 1-6)
+greeting -i 10                 # Switch scenes every 10 seconds (0 disables auto-switch)
+greeting --static              # Render a single frame inline and exit immediately
+greeting --fg                  # Interactive foreground viewer
+greeting --text                # Force pure 24-bit TrueColor text (skip Kitty/Sixel graphics)
+```
+
+### Interactive foreground controls (`greeting --fg`)
+- `1`–`6`: Jump directly to a scene
+- `Space` / `n` / `r` / `→`: Switch to another random scene
+- `←`: Previous scene
+- `p` / `l`: Lock / unlock automatic scene rotation
+- `q` / `Enter` / `Esc` / `Ctrl-C`: Exit
+
+### Classic collectible pet subcommands
+```bash
+greeting pet                   # Show the classic starry pet greeting card
+greeting roll                  # Roll a new pet drop (5-minute cooldown)
+greeting collection            # List all collected pet drops
+greeting set <number>          # Pin a collected pet as default
+greeting unset                 # Return to random drops
+greeting catalog               # Show all 18 species and counts owned
+```
+
+Pet collection state is stored at `~/.config/terminal-greeting/state.json`.
+
+---
+
+## Architecture
+
+| File | Responsibility |
+|---|---|
+| `src/main.rs` | CLI parsing (`clap`), subcommand dispatch, hidden `--daemon` / `--dump-rgba` flags |
+| `src/scenes.rs` | Pure-text `70×17` fallback scenes, hybrid native HUD (`23` cols) + HD layout math, background daemon, resize debouncing, foreground viewer |
+| `src/scenes_hd.rs` | All 6 high-detail `66×30` tiny-font ASCII scenes and per-scene HUD accent styles |
+| `src/gfx.rs` | `BloomRenderer` (glyph blitting, 2-scale half-res separable Gaussian bloom, HDR soft-knee tone mapping), Kitty Graphics Protocol (`zlib` + base64 chunker), native transparent Sixel encoder (adaptive 12-bit 240-color palette + Bayer alpha dithering), `/proc` + env terminal protocol auto-detection |
+| `src/font_atlas.rs` | Pre-baked `7×11` antialiased `JetBrainsMono` alpha bitmaps (111 glyphs, including geometric stipple `▓`/`▒`/`░` and crisp `=`) |
+| `src/sysinfo.rs` | Fast local OS, kernel, IP, and package count gathering |
+| `src/display.rs`, `src/pets.rs`, `src/collection.rs`, `src/state.rs` | Classic collectible pet system |
+
+---
+
+## Further Reading
+
+- **[PITFALLS.md](PITFALLS.md)** — Terminal protocol, PTY, Sixel/Kitty graphics, resize, and font-atlas gotchas discovered while building this.
+- **[AGENTS.md](AGENTS.md)** — Architecture invariants, style rules, and headless testing workflow for contributors and coding agents.

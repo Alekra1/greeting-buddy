@@ -143,12 +143,10 @@ fn comp_row(elems: &[Elem], row: usize, color: &str) -> String {
         }
     }
 
-    // Trailing blanks are not emitted.
-    let used = cells.iter().rposition(|c| c.is_some()).map_or(0, |i| i + 1);
-
+    // Every cell is emitted (blanks included) so the right border lines up.
     let mut s = String::new();
     let mut cur: Option<Ink> = None;
-    for cell in &cells[..used] {
+    for cell in &cells {
         match cell {
             Some((ch, ink)) => {
                 if cur != Some(*ink) {
@@ -174,6 +172,33 @@ fn comp_row(elems: &[Elem], row: usize, color: &str) -> String {
         s.push_str(RESET);
     }
     s
+}
+
+// ── Starry border ─────────────────────────────────────────────────────────────
+//
+// ✦ ·  · ─ ── ─── ─── … ✧   top + bottom: shooting star, dim trail streaking to a ✧ head
+// : <58-col body>    :     sides: dim colons, one blank column of right padding
+
+const BORDER_INNER: usize = WIDTH + 1;
+const BORDER_TRAIL_START: &str = " ·  ·  · ─ ── ─── ";
+
+fn border_shooting_star(color: &str) -> String {
+    let trail: String = BORDER_TRAIL_START
+        .chars()
+        .chain(std::iter::repeat('─'))
+        .take(BORDER_INNER)
+        .collect();
+    format!(
+        "{c}✦{RESET}{DIM}{c}{trail}{RESET}{c}✧{RESET}",
+        c = color,
+        RESET = RESET,
+        DIM = DIM,
+        trail = trail
+    )
+}
+
+fn border_side(color: &str) -> String {
+    format!("{}{}:{}", DIM, color, RESET)
 }
 
 // ── Greeting box ─────────────────────────────────────────────────────────────
@@ -225,6 +250,8 @@ pub fn print_greeting_box(drop: &PetDrop, _state: &State, _is_new_drop: bool, si
         .max(MOON_ROW + MOON.len());
 
     // ── Render ────────────────────────────────────────────────────────────
+    let side = border_side(color);
+    println!("{}", border_shooting_star(color));
     for row in 0..total_rows {
         // Painted back-to-front: moon, clouds, pet art (all transparent), then info.
         let mut elems: Vec<Elem> = Vec::new();
@@ -264,8 +291,9 @@ pub fn print_greeting_box(drop: &PetDrop, _state: &State, _is_new_drop: bool, si
             }
         }
 
-        println!("{}", comp_row(&elems, row, color));
+        println!("{}{} {}", side, comp_row(&elems, row, color), side);
     }
+    println!("{}", border_shooting_star(color));
 
     println!();
 }
