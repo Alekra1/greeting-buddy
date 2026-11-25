@@ -42,9 +42,13 @@ struct Cli {
     #[arg(long = "text")]
     text_mode: bool,
 
-    /// Internal: dump raw 560x330 RGBA8888 bytes of one HD bloom frame to a file
+    /// Internal: dump raw 462x330 RGBA8888 bytes of one HD bloom frame to a file
     #[arg(long = "dump-rgba", hide = true)]
     dump_rgba: Option<String>,
+
+    /// Internal: animation timestamp (seconds) for --dump-rgba
+    #[arg(long = "dump-time", default_value_t = 2.4, hide = true)]
+    dump_time: f32,
 
     /// Internal: run the background top-banner animator
     #[arg(long = "daemon", hide = true)]
@@ -113,7 +117,7 @@ fn main() {
 
             if let Some(ref dump_path) = cli.dump_rgba {
                 let target = initial.unwrap_or(Scene::Eclipse);
-                if let Err(e) = scenes::dump_hd_rgba(target, dump_path) {
+                if let Err(e) = scenes::dump_hd_rgba(target, cli.dump_time, dump_path) {
                     eprintln!("Failed to dump RGBA: {}", e);
                     std::process::exit(1);
                 }

@@ -2,6 +2,10 @@
 
 A lightweight Rust terminal greeting banner that renders **live, animated dark-fantasy ASCII scenes with real HDR optical bloom** alongside a compact native system HUD — without touching your terminal config or slowing down shell startup.
 
+<p align="center">
+  <img src="assets/demo.gif" alt="greeting live animated showcase" width="760" />
+</p>
+
 It automatically selects the best rendering backend for your terminal:
 
 | Terminal | Backend | Visual Quality |
@@ -18,14 +22,38 @@ The classic collectible pet system is also preserved under `greeting pet`, `gree
 
 ## Scenes
 
-| `#` | Name | Aliases | Description |
-|---|---|---|---|
-| `1` | **Eclipse Knight** | `eclipse`, `knight` | Armored dark knight, blazing solar-eclipse corona, diagonal flaming greatsword |
-| `2` | **Ruined Bonfire** | `bonfire`, `fire` | Gothic sanctuary pillars & crumbling arch, coiled sword in roaring bonfire, lit cobblestones |
-| `3` | **Moonlit Torii** | `torii`, `shrine`, `moon` | Crimson blood moon, vermilion Torii gate with gilded `◈` plaque, pine islets, sakura petals, shimmering water |
-| `4` | **Astral Gate** | `portal`, `astral`, `gate` | Carved stone archway with glowing `◈` keystone & `§` pillar runes, swirling cyan-violet vortex, stepped dais |
-| `5` | **Arcane Grimoire** | `grimoire`, `book`, `tome` | Levitating open spellbook, stacked gilded pages, amethyst & gold double-helix rune ribbons, carved stone altar |
-| `6` | **Nether Portal** | `nether`, `mc`, `minecraft` | Tall 4:5 crying-obsidian brick frame, swirling magenta-violet vortex, flanking Nether fire braziers, basalt & magma floor |
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/eclipse.png" alt="Eclipse Knight" /><br />
+      <strong>1. Eclipse Knight</strong> (<code>eclipse</code>, <code>knight</code>)
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/bonfire.png" alt="Ruined Bonfire" /><br />
+      <strong>2. Ruined Bonfire</strong> (<code>bonfire</code>, <code>fire</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/torii.png" alt="Moonlit Torii" /><br />
+      <strong>3. Moonlit Torii</strong> (<code>torii</code>, <code>shrine</code>, <code>moon</code>)
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/portal.png" alt="Astral Gate" /><br />
+      <strong>4. Astral Gate</strong> (<code>portal</code>, <code>astral</code>, <code>gate</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/grimoire.png" alt="Arcane Grimoire" /><br />
+      <strong>5. Arcane Grimoire</strong> (<code>grimoire</code>, <code>book</code>, <code>tome</code>)
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/nether.png" alt="Nether Portal" /><br />
+      <strong>6. Nether Portal</strong> (<code>nether</code>, <code>mc</code>, <code>minecraft</code>)
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -114,15 +142,16 @@ Pet collection state is stored at `~/.config/terminal-greeting/state.json`.
 
 ## Architecture
 
-| File | Responsibility |
+| Path | Responsibility |
 |---|---|
-| `src/main.rs` | CLI parsing (`clap`), subcommand dispatch, hidden `--daemon` / `--dump-rgba` flags |
+| `src/main.rs` | CLI parsing (`clap`), subcommand dispatch, hidden `--daemon` / `--dump-rgba` / `--dump-time` flags |
 | `src/scenes.rs` | Pure-text `70×17` fallback scenes, hybrid native HUD (`23` cols) + HD layout math, background daemon, resize debouncing, foreground viewer |
 | `src/scenes_hd.rs` | All 6 high-detail `66×30` tiny-font ASCII scenes and per-scene HUD accent styles |
 | `src/gfx.rs` | `BloomRenderer` (glyph blitting, 2-scale half-res separable Gaussian bloom, HDR soft-knee tone mapping), Kitty Graphics Protocol (`zlib` + base64 chunker), native transparent Sixel encoder (adaptive 12-bit 240-color palette + Bayer alpha dithering), `/proc` + env terminal protocol auto-detection |
 | `src/font_atlas.rs` | Pre-baked `7×11` antialiased `JetBrainsMono` alpha bitmaps (111 glyphs, including geometric stipple `▓`/`▒`/`░` and crisp `=`) |
 | `src/sysinfo.rs` | Fast local OS, kernel, IP, and package count gathering |
 | `src/display.rs`, `src/pets.rs`, `src/collection.rs`, `src/state.rs` | Classic collectible pet system |
+| `assets/` | Headlessly rendered showcase PNGs and animated hero GIF for README |
 
 ---
 

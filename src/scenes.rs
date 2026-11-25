@@ -1671,10 +1671,10 @@ fn encode_hd_hud_pinned(
     }
 }
 
-pub fn dump_hd_rgba(scene: Scene, path: &str) -> io::Result<()> {
+pub fn dump_hd_rgba(scene: Scene, t: f32, path: &str) -> io::Result<()> {
     let mut grid = HdGrid::new();
     let mut renderer = BloomRenderer::new();
-    render_hd_scene(scene, &mut grid, 2.4);
+    render_hd_scene(scene, &mut grid, t);
     renderer.rasterize(&grid);
     std::fs::write(path, &renderer.rgba)
 }

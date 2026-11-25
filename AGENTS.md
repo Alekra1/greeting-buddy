@@ -39,7 +39,7 @@ cd /home/alekra1/greeting && cargo install --path . --offline
 
 | File | Role |
 |---|---|
-| `src/main.rs` | `clap` CLI definition (`--scene`, `--interval`, `--static`, `--fg`, `--text`, hidden `--daemon`, `--shell-pid`, `--dump-rgba`) and dispatch |
+| `src/main.rs` | `clap` CLI definition (`--scene`, `--interval`, `--static`, `--fg`, `--text`, hidden `--daemon`, `--shell-pid`, `--dump-rgba`, `--dump-time`) and dispatch |
 | `src/scenes.rs` | `Scene` enum (6 scenes), `70×17` pure-text fallback renderer, hybrid HUD (`HUD_WIDTH = 23`, graphic at col `24`), `compute_hd_layout`, `start_background_banner`, `run_daemon`, `run_foreground`, `print_static`, `dump_hd_rgba` |
 | `src/scenes_hd.rs` | All 6 `66×30` HD scenes (`render_hd_eclipse`, `render_hd_bonfire`, `render_hd_torii`, `render_hd_portal`, `render_hd_grimoire`, `render_hd_nether`) and `scene_hud_style` |
 | `src/gfx.rs` | `HD_COLS = 66`, `HD_ROWS = 30`, `IMG_W = 462`, `IMG_H = 330`, `HdGrid`, `BloomRenderer` (2-scale separable half-res box blur + HDR soft-knee bloom), Kitty Graphics zlib+base64 emitter, native Sixel adaptive-palette encoder, `detect_graphics_proto` (env + `/proc/<pid>/comm` ancestor walk) |
